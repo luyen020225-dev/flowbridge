@@ -1,228 +1,274 @@
 import streamlit as st
 import urllib.parse
 
-st.set_page_config(page_title="小红书 - FlowBridge内测版", page_icon="📕", layout="centered")
+st.set_page_config(page_title="小红书 - FlowBridge", page_icon="📕", layout="centered")
 
 # ==========================================
-# 终极 CSS：模拟手机外壳、小红书界面、及悬浮气泡
+# 极致 CSS：1:1 还原深色模式小红书 + 手机外壳
 # ==========================================
 st.markdown("""
 <style>
-    /* 隐藏 Streamlit 默认的菜单和顶部 */
+    /* 隐藏 Streamlit 默认元素 */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* 全局背景设为浅灰，模拟手机外部环境 */
+    /* 全局背景设为深灰色，模拟手机外环境 */
     .stApp {
-        background-color: #f5f5f5;
+        background-color: #121212;
     }
     
-    /* 手机壳容器 */
+    /* 手机壳容器 (深色模式) */
     .phone-frame {
-        max-width: 420px;
+        max-width: 400px;
         margin: 0 auto;
-        background-color: #ffffff;
-        border-radius: 24px;
+        background-color: #000000;
+        border-radius: 32px;
         padding: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        border: 1px solid #e0e0e0;
+        box-shadow: 0 10px 40px rgba(255,255,255,0.1);
+        border: 1px solid #333;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #ffffff;
         position: relative;
+        min-height: 800px;
     }
     
-    /* 笔记卡片 */
-    .note-card {
-        padding: 10px 0;
-    }
-    .note-author {
+    /* 顶部导航 */
+    .app-header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 12px;
+        justify-content: space-between;
+        padding-bottom: 12px;
     }
-    .note-author img {
-        width: 36px;
-        height: 36px;
+    .app-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .app-header-left img {
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
     }
-    .note-title {
-        font-size: 17px;
-        font-weight: 700;
-        margin-bottom: 8px;
-        color: #1a1a1a;
-    }
-    .note-content {
+    .app-header-left span {
         font-size: 15px;
-        line-height: 1.6;
-        color: #333;
-        margin-bottom: 12px;
+        font-weight: 500;
     }
+    .follow-btn {
+        background-color: transparent;
+        border: 1px solid #ff2442;
+        color: #ff2442;
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    /* 笔记内容 */
     .note-image {
         width: 100%;
         border-radius: 12px;
         margin-bottom: 12px;
+        object-fit: cover;
     }
-    .note-footer {
-        display: flex;
-        gap: 20px;
-        color: #666;
-        font-size: 13px;
-        margin-bottom: 16px;
-    }
-    .comment-section {
-        background-color: #f9f9f9;
-        border-radius: 12px;
-        padding: 12px;
-    }
-    .comment-item {
-        font-size: 13px;
-        color: #444;
+    .note-content {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #e0e0e0;
         margin-bottom: 8px;
     }
-    .comment-user {
-        font-weight: 600;
-        color: #333;
-        margin-right: 6px;
+    .note-meta {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 20px;
     }
     
-    /* 悬浮 FlowBridge 气泡容器 */
-    .bridge-bubble {
+    /* 互动栏 */
+    .interaction-bar {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #aaa;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #222;
+        padding-bottom: 12px;
+    }
+    
+    /* 评论区 */
+    .comment-section-title {
+        font-size: 14px;
+        font-weight: bold;
+        color: #fff;
+        margin-bottom: 16px;
+    }
+    .comment-item {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+    .comment-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #333;
+        flex-shrink: 0;
+    }
+    .comment-content {
+        flex-grow: 1;
+    }
+    .comment-user {
+        font-size: 13px;
+        font-weight: 600;
+        color: #bbb;
+        margin-bottom: 4px;
+    }
+    .comment-text {
+        font-size: 14px;
+        color: #eee;
+        line-height: 1.5;
+        margin-bottom: 6px;
+    }
+    .comment-meta {
+        font-size: 12px;
+        color: #666;
+        display: flex;
+        justify-content: space-between;
+    }
+    .comment-reply {
+        background-color: #1a1a1a;
+        border-radius: 8px;
+        padding: 8px;
+        margin-top: 8px;
+        font-size: 13px;
+        color: #ccc;
+    }
+    
+    /* 底部悬浮栏 */
+    .bottom-bar {
         position: fixed;
-        right: 20px;
-        bottom: 20px;
-        z-index: 999;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-width: 400px;
+        margin: 0 auto;
+        background-color: #111;
+        border-top: 1px solid #222;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+    }
+    .bottom-input {
+        flex-grow: 1;
+        background-color: #222;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 13px;
+        color: #888;
+    }
+    .bottom-icons {
+        display: flex;
+        gap: 16px;
+        font-size: 20px;
+        color: #fff;
+    }
+    .bottom-icons span {
+        font-size: 12px;
+        vertical-align: middle;
+        margin-left: 4px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 模拟数据（明确区分内外跳转）
+# HTML 结构渲染 (完全按照截图)
 # ==========================================
-NOTES_DB = {
-    "笔记1：有未入驻品牌（雅诗兰黛）": {
-        "author": "干皮小仙女",
-        "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-        "title": "干皮救星！这几款粉底液真的绝了",
-        "content": "最近干皮真的离不开雅诗兰黛沁水粉底液，滋润度绝了，比兰蔻菁纯更适合我。",
-        "image": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&fit=crop",
-        "likes": "1.2w",
-        "comments": [
-            {"user": "网友A", "text": "我也觉得雅诗兰黛好用！"},
-            {"user": "网友B", "text": "花西子适合油皮吗？"}
-        ]
-    },
-    "笔记2：有已入驻品牌（花西子）": {
-        "author": "国货挖掘机",
-        "avatar": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-        "title": "花西子新品粉底液真实测评！",
-        "content": "花西子这款粉底液真的惊艳到我了，遮瑕力和持妆度都在线，今天给大家详细测评一下。",
-        "image": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800&h=600&fit=crop",
-        "likes": "856",
-        "comments": [
-            {"user": "网友C", "text": "哇，刚好想买！"}
-        ]
-    }
-}
-
-# 品牌库配置真实跳转地址
-BRAND_DB = {
-    "花西子": {
-        "in_xhs": True, 
-        "xhs_shop_name": "花西子官方旗舰店",
-        "xhs_url": "https://www.xiaohongshu.com/search_result?keyword=花西子官方旗舰店",
-        "price": "¥219"
-    },
-    "雅诗兰黛": {
-        "in_xhs": False, 
-        # 用京东搜索页，不用登录，点击就能看到结果，保证演示不翻车
-        "external_url": "https://search.jd.com/Search?keyword=" + urllib.parse.quote("雅诗兰黛沁水粉底液"),
-        "price": "¥490"
-    }
-}
-
-def extract_brands(text):
-    all_brands = list(BRAND_DB.keys())
-    found = [b for b in all_brands if b in text]
-    if not found:
-        return "未知", []
-    return found[0], found[1:]
-
-# ==========================================
-# 渲染主体
-# ==========================================
-st.markdown('<div style="text-align:center; font-size:12px; color:#999; margin-bottom:10px;">📱 移动端模拟界面</div>', unsafe_allow_html=True)
-
-# 模拟手机框
-st.markdown('<div class="phone-frame">', unsafe_allow_html=True)
-
-# 选择笔记 (为了演示方便，用一个隐藏的 selectbox)
-selected_note = st.selectbox("切换模拟笔记：", list(NOTES_DB.keys()), label_visibility="collapsed")
-note = NOTES_DB[selected_note]
-
-# 渲染笔记内容 (纯 HTML，避免 Streamlit 原生组件破坏排版)
-st.markdown(f"""
-<div class="note-card">
-    <div class="note-author">
-        <img src="{note['avatar']}" alt="avatar">
-        <span>@{note['author']}</span>
+st.markdown("""
+<div class="phone-frame">
+    <!-- 顶部导航 -->
+    <div class="app-header">
+        <div class="app-header-left">
+            <span style="font-size: 20px;">&larr;</span>
+            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop" alt="avatar">
+            <span>poem</span>
+        </div>
+        <div>
+            <span class="follow-btn">关注</span>
+        </div>
     </div>
-    <div class="note-title">{note['title']}</div>
-    <div class="note-content">{note['content']}</div>
-    <img class="note-image" src="{note['image']}" alt="note image">
-    <div class="note-footer">
-        <span>❤️ {note['likes']}</span>
-        <span>💬 {len(note['comments'])} 条评论</span>
+
+    <!-- 笔记图片 (模拟手绘图) -->
+    <img class="note-image" src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&fit=crop" alt="note image">
+    
+    <!-- 笔记文案 -->
+    <div class="note-content">到底有没有适合干皮的粉底液啊😭</div>
+    <div class="note-meta">8月15日 甘肃 &nbsp;&nbsp; 😒 不喜欢</div>
+
+    <!-- 互动栏 -->
+    <div class="interaction-bar">
+        <span>共 775 条评论 &or;</span>
     </div>
-    <div class="comment-section">
-        <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px; color:#666;">评论区</div>
-        {"".join([f'<div class="comment-item"><span class="comment-user">{c["user"]}：</span>{c["text"]}</div>' for c in note["comments"]])}
+
+    <!-- 评论区 -->
+    <div class="comment-section-title">评论区</div>
+    
+    <!-- 评论 1 -->
+    <div class="comment-item">
+        <div class="comment-avatar" style="background-image: url('https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop'); background-size: cover;"></div>
+        <div class="comment-content">
+            <div class="comment-user">椰椰奶黄包</div>
+            <div class="comment-text">去用 香奈儿持妆°！！我干敏！！！</div>
+            <div class="comment-meta"><span>08-16 江苏</span><span>❤️ 8</span></div>
+            <div class="comment-reply">
+                <span style="color:#aaa;">偶不言：</span>真的吗姐妹我也是干敏
+            </div>
+        </div>
+    </div>
+
+    <!-- 评论 2 -->
+    <div class="comment-item">
+        <div class="comment-avatar" style="background-image: url('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop'); background-size: cover;"></div>
+        <div class="comment-content">
+            <div class="comment-user">嘟噜噜🐥</div>
+            <div class="comment-text">cpb晶钻粉霜°</div>
+            <div class="comment-meta"><span>08-17 河北</span><span>❤️ 8</span></div>
+        </div>
+    </div>
+
+    <!-- 评论 3 -->
+    <div class="comment-item">
+        <div class="comment-avatar" style="background-image: url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop'); background-size: cover;"></div>
+        <div class="comment-content">
+            <div class="comment-user">音乐学考研馨馨学姐</div>
+            <div class="comment-text">植村秀0卡</div>
+            <div class="comment-meta"><span>08-16 河北</span><span>❤️ 6</span></div>
+            <div class="comment-reply">
+                <span style="color:#aaa;">momo：</span>容易暗沉吗😘
+            </div>
+        </div>
+    </div>
+
+    <!-- 评论 4 -->
+    <div class="comment-item">
+        <div class="comment-avatar" style="background-image: url('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop'); background-size: cover;"></div>
+        <div class="comment-content">
+            <div class="comment-user">篱&烬墨</div>
+            <div class="comment-text">娇兰金钻</div>
+            <div class="comment-meta"><span>08-16 浙江</span><span>❤️ 4</span></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 底部悬浮栏 -->
+<div class="bottom-bar">
+    <div class="bottom-input">留下你的想法吧</div>
+    <div class="bottom-icons">
+        ❤️<span>1113</span>
+        ⭐<span>790</span>
+        💬<span>775</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True) # 关闭手机框
-
-# ==========================================
-# FlowBridge 插件功能（用 Popover 模拟悬浮气泡）
-# ==========================================
-st.write("") # 加一点空隙，防止挤在一起
-st.markdown("### 👇 模拟浏览器右下角的 FlowBridge 智能气泡")
-
-full_text = note["content"] + " " + " ".join([c["text"] for c in note["comments"]])
-core_product, secondary_brands = extract_brands(full_text)
-
-if core_product in BRAND_DB:
-    info = BRAND_DB[core_product]
-    
-    # 使用 st.popover 模拟点击气泡后弹出的面板
-    with st.popover(f"🔍 发现核心商品：{core_product}（点击查看跳转）", use_container_width=True):
-        st.markdown(f"**核心商品：** {core_product}")
-        
-        if info["in_xhs"]:
-            # 闭环跳转
-            st.success(f"✅ 已入驻小红书，优先推荐站内购买")
-            st.link_button(f"🛒 去小红书「{info['xhs_shop_name']}」购买", info["xhs_url"], type="primary", use_container_width=True)
-            st.caption("提示：点击将在新标签页打开小红书官方搜索页。")
-        else:
-            # 开环跳转（外部）
-            st.warning(f"⚠️ 未入驻小红书，为您跳转站外官方渠道")
-            st.link_button(f"🔗 去京东购买「{core_product}」预估 {info['price']}", info["external_url"], type="primary", use_container_width=True)
-            st.caption("提示：跳转至京东官方搜索页，平台将获得 CPS 佣金收入。")
-        
-        if secondary_brands:
-            st.markdown("---")
-            st.markdown("**📎 已自动折叠次要品牌（不干扰阅读）：**")
-            for b in secondary_brands:
-                st.write(f"- {b}")
-
-    # 小提示：告诉测试者怎么切换
-    st.caption("👉 你可以切换上方的下拉框，分别测试【花西子】和【雅诗兰黛】的跳转效果。")
-
-else:
-    st.info("未检测到可识别的核心商品。")
-
-st.markdown("---")
-st.caption("💡 这是一个模拟Demo。点击按钮会跳转至真实的平台页面（小红书/京东）。")
