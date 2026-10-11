@@ -1,114 +1,120 @@
 import streamlit as st
 import urllib.parse
 
-st.set_page_config(page_title="小红书 - FlowBridge原型", page_icon="📕", layout="wide")
+st.set_page_config(page_title="小红书 - FlowBridge内测版", page_icon="📕", layout="centered")
 
 # ==========================================
-# 注入自定义 CSS，模拟小红书网页版 UI
+# 终极 CSS：模拟手机外壳、小红书界面、及悬浮气泡
 # ==========================================
 st.markdown("""
 <style>
-    /* 隐藏 Streamlit 默认的顶部和菜单 */
+    /* 隐藏 Streamlit 默认的菜单和顶部 */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* 页面背景设为白色 */
-    .stApp { background-color: #ffffff; }
+    /* 全局背景设为浅灰，模拟手机外部环境 */
+    .stApp {
+        background-color: #f5f5f5;
+    }
     
-    /* 笔记卡片样式 */
-    .note-card {
-        border: 1px solid #f0f0f0;
-        border-radius: 12px;
-        padding: 20px;
-        max-width: 600px;
+    /* 手机壳容器 */
+    .phone-frame {
+        max-width: 420px;
         margin: 0 auto;
-        background-color: #fff;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #ffffff;
+        border-radius: 24px;
+        padding: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        border: 1px solid #e0e0e0;
+        position: relative;
+    }
+    
+    /* 笔记卡片 */
+    .note-card {
+        padding: 10px 0;
     }
     .note-author {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         font-size: 14px;
         font-weight: 600;
         color: #333;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        margin-bottom: 12px;
     }
     .note-author img {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
     }
     .note-title {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 700;
-        margin-top: 12px;
+        margin-bottom: 8px;
         color: #1a1a1a;
     }
     .note-content {
         font-size: 15px;
         line-height: 1.6;
         color: #333;
-        margin-top: 10px;
+        margin-bottom: 12px;
     }
     .note-image {
         width: 100%;
-        border-radius: 8px;
-        margin-top: 12px;
+        border-radius: 12px;
+        margin-bottom: 12px;
     }
     .note-footer {
         display: flex;
-        gap: 16px;
-        margin-top: 12px;
+        gap: 20px;
         color: #666;
         font-size: 13px;
+        margin-bottom: 16px;
     }
     .comment-section {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid #f0f0f0;
+        background-color: #f9f9f9;
+        border-radius: 12px;
+        padding: 12px;
     }
     .comment-item {
         font-size: 13px;
-        color: #555;
+        color: #444;
         margin-bottom: 8px;
     }
     .comment-user {
         font-weight: 600;
         color: #333;
-        margin-right: 4px;
+        margin-right: 6px;
     }
-    /* 模拟小红书红色标志 */
-    .xhs-logo {
-        color: #ff2442;
-        font-weight: bold;
-        font-size: 18px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 10px;
+    
+    /* 悬浮 FlowBridge 气泡容器 */
+    .bridge-bubble {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 999;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 模拟数据
+# 模拟数据（明确区分内外跳转）
 # ==========================================
 NOTES_DB = {
-    "笔记1（内有未入驻品牌-雅诗兰黛）": {
+    "笔记1：有未入驻品牌（雅诗兰黛）": {
         "author": "干皮小仙女",
         "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
         "title": "干皮救星！这几款粉底液真的绝了",
-        "content": "最近干皮真的离不开雅诗兰黛沁水粉底液，滋润度绝了，比兰蔻菁纯更适合我，花西子的也不错但遮瑕弱一点。姐妹们冲！",
+        "content": "最近干皮真的离不开雅诗兰黛沁水粉底液，滋润度绝了，比兰蔻菁纯更适合我。",
         "image": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&fit=crop",
         "likes": "1.2w",
         "comments": [
             {"user": "网友A", "text": "我也觉得雅诗兰黛好用！"},
-            {"user": "网友B", "text": "花西子适合油皮吗？"},
-            {"user": "商家自荐", "text": "我家有同款，点我主页！"}
+            {"user": "网友B", "text": "花西子适合油皮吗？"}
         ]
     },
-    "笔记2（内有已入驻品牌-花西子）": {
+    "笔记2：有已入驻品牌（花西子）": {
         "author": "国货挖掘机",
         "avatar": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
         "title": "花西子新品粉底液真实测评！",
@@ -116,29 +122,24 @@ NOTES_DB = {
         "image": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800&h=600&fit=crop",
         "likes": "856",
         "comments": [
-            {"user": "网友C", "text": "哇，刚好想买！"},
-            {"user": "网友D", "text": "持妆度怎么样？"}
+            {"user": "网友C", "text": "哇，刚好想买！"}
         ]
     }
 }
 
-# 品牌库（这里直接定义真实的跳转URL）
+# 品牌库配置真实跳转地址
 BRAND_DB = {
     "花西子": {
         "in_xhs": True, 
         "xhs_shop_name": "花西子官方旗舰店",
-        "xhs_url": "https://www.xiaohongshu.com/user/profile/5f3d5e5e0000000001009d5c", # 这里是一个模拟的店铺主页链接
+        "xhs_url": "https://www.xiaohongshu.com/search_result?keyword=花西子官方旗舰店",
         "price": "¥219"
     },
     "雅诗兰黛": {
         "in_xhs": False, 
-        "external_url": "https://s.taobao.com/search?q=" + urllib.parse.quote("雅诗兰黛沁水粉底液"),
+        # 用京东搜索页，不用登录，点击就能看到结果，保证演示不翻车
+        "external_url": "https://search.jd.com/Search?keyword=" + urllib.parse.quote("雅诗兰黛沁水粉底液"),
         "price": "¥490"
-    },
-    "兰蔻": {
-        "in_xhs": False, 
-        "external_url": "https://s.taobao.com/search?q=" + urllib.parse.quote("兰蔻菁纯粉底液"),
-        "price": "¥560"
     }
 }
 
@@ -150,75 +151,78 @@ def extract_brands(text):
     return found[0], found[1:]
 
 # ==========================================
-# 界面主体渲染
+# 渲染主体
 # ==========================================
-col_left, col_main, col_right = st.columns([1, 4, 1])
+st.markdown('<div style="text-align:center; font-size:12px; color:#999; margin-bottom:10px;">📱 移动端模拟界面</div>', unsafe_allow_html=True)
 
-with col_main:
-    # 顶部红书 Logo
-    st.markdown('<div class="xhs-logo">📕 小红书 · FlowBridge 内测版</div>', unsafe_allow_html=True)
-    
-    # 选择笔记
-    selected_note = st.selectbox("切换笔记视图：", list(NOTES_DB.keys()), label_visibility="collapsed")
-    note = NOTES_DB[selected_note]
+# 模拟手机框
+st.markdown('<div class="phone-frame">', unsafe_allow_html=True)
 
-    # 渲染笔记卡片 (HTML 注入)
-    st.markdown(f"""
-    <div class="note-card">
-        <div class="note-author">
-            <img src="{note['avatar']}" alt="avatar">
-            <span>{note['author']}</span>
-        </div>
-        <div class="note-title">{note['title']}</div>
-        <div class="note-content">{note['content']}</div>
-        <img class="note-image" src="{note['image']}" alt="note image">
-        <div class="note-footer">
-            <span>❤️ {note['likes']}</span>
-            <span>💬 {len(note['comments'])} 条评论</span>
-        </div>
-        <div class="comment-section">
-            <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">💬 评论区</div>
-            {"".join([f'<div class="comment-item"><span class="comment-user">{c["user"]}：</span>{c["text"]}</div>' for c in note["comments"]])}
-        </div>
+# 选择笔记 (为了演示方便，用一个隐藏的 selectbox)
+selected_note = st.selectbox("切换模拟笔记：", list(NOTES_DB.keys()), label_visibility="collapsed")
+note = NOTES_DB[selected_note]
+
+# 渲染笔记内容 (纯 HTML，避免 Streamlit 原生组件破坏排版)
+st.markdown(f"""
+<div class="note-card">
+    <div class="note-author">
+        <img src="{note['avatar']}" alt="avatar">
+        <span>@{note['author']}</span>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="note-title">{note['title']}</div>
+    <div class="note-content">{note['content']}</div>
+    <img class="note-image" src="{note['image']}" alt="note image">
+    <div class="note-footer">
+        <span>❤️ {note['likes']}</span>
+        <span>💬 {len(note['comments'])} 条评论</span>
+    </div>
+    <div class="comment-section">
+        <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px; color:#666;">评论区</div>
+        {"".join([f'<div class="comment-item"><span class="comment-user">{c["user"]}：</span>{c["text"]}</div>' for c in note["comments"]])}
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-    st.markdown("---")
-    
-    # ==========================================
-    # FlowBridge 插件功能介入
-    # ==========================================
-    st.markdown("### 🔍 FlowBridge 智能识别与购买引导")
-    
-    full_text = note["content"] + " " + " ".join([c["text"] for c in note["comments"]])
-    core_product, secondary_brands = extract_brands(full_text)
+st.markdown('</div>', unsafe_allow_html=True) # 关闭手机框
 
-    if core_product in BRAND_DB:
-        info = BRAND_DB[core_product]
-        st.markdown(f"**检测到核心商品：<span style='color:#ff2442;'>{core_product}</span>**", unsafe_allow_html=True)
+# ==========================================
+# FlowBridge 插件功能（用 Popover 模拟悬浮气泡）
+# ==========================================
+st.write("") # 加一点空隙，防止挤在一起
+st.markdown("### 👇 模拟浏览器右下角的 FlowBridge 智能气泡")
+
+full_text = note["content"] + " " + " ".join([c["text"] for c in note["comments"]])
+core_product, secondary_brands = extract_brands(full_text)
+
+if core_product in BRAND_DB:
+    info = BRAND_DB[core_product]
+    
+    # 使用 st.popover 模拟点击气泡后弹出的面板
+    with st.popover(f"🔍 发现核心商品：{core_product}（点击查看跳转）", use_container_width=True):
+        st.markdown(f"**核心商品：** {core_product}")
         
-        # --- 情况1：已入驻小红书 (内部闭环跳转) ---
         if info["in_xhs"]:
-            st.success(f"✅ 优先推荐小红书站内购买：{info['xhs_shop_name']} ({info['price']})")
-            st.markdown("👉 点击下方按钮，直接打开 **小红书店铺主页**：")
+            # 闭环跳转
+            st.success(f"✅ 已入驻小红书，优先推荐站内购买")
             st.link_button(f"🛒 去小红书「{info['xhs_shop_name']}」购买", info["xhs_url"], type="primary", use_container_width=True)
-            st.caption("提示：由于小红书网页版限制，当前跳转至其店铺主页。若在App内，将直接唤起商品下单页。")
-            
-        # --- 情况2：未入驻小红书 (外部开环跳转) ---
+            st.caption("提示：点击将在新标签页打开小红书官方搜索页。")
         else:
-            st.warning(f"⚠️ {core_product} 暂未入驻小红书，为您匹配站外官方渠道：")
-            st.markdown("👉 点击下方按钮，跳转至 **淘宝官方搜索页**：")
-            st.link_button(f"🔗 去淘宝购买「{core_product}」预估 {info['price']}", info["external_url"], type="primary", use_container_width=True)
-            st.caption("提示：该品牌未入驻小红书，跳转至第三方平台。平台将获得 CPS 佣金收入。")
-
-    # 次要品牌折叠
-    if secondary_brands:
-        with st.expander(f"📎 文中还提及了 {len(secondary_brands)} 个其他品牌（已折叠，避免干扰）"):
+            # 开环跳转（外部）
+            st.warning(f"⚠️ 未入驻小红书，为您跳转站外官方渠道")
+            st.link_button(f"🔗 去京东购买「{core_product}」预估 {info['price']}", info["external_url"], type="primary", use_container_width=True)
+            st.caption("提示：跳转至京东官方搜索页，平台将获得 CPS 佣金收入。")
+        
+        if secondary_brands:
+            st.markdown("---")
+            st.markdown("**📎 已自动折叠次要品牌（不干扰阅读）：**")
             for b in secondary_brands:
-                if b in BRAND_DB:
-                    status = "已入驻" if BRAND_DB[b]["in_xhs"] else "未入驻"
-                    st.write(f"- {b}（{status}）")
-            st.caption("次要品牌不触发跳转卡片，保持阅读纯净。")
+                st.write(f"- {b}")
 
-    st.markdown("---")
-    st.caption("💡 测试提示：切换到【笔记1】看未入驻品牌的外部跳转，切换到【笔记2】看已入驻品牌的内部跳转。")
+    # 小提示：告诉测试者怎么切换
+    st.caption("👉 你可以切换上方的下拉框，分别测试【花西子】和【雅诗兰黛】的跳转效果。")
+
+else:
+    st.info("未检测到可识别的核心商品。")
+
+st.markdown("---")
+st.caption("💡 这是一个模拟Demo。点击按钮会跳转至真实的平台页面（小红书/京东）。")
